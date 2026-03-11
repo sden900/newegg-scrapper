@@ -1,0 +1,19 @@
+{
+  "name": "newegg-scraper",
+  "version": "1.0.0",
+  "description": "Playwright-based scraper for Newegg.com product listing pages",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npx ts-node src/index.ts",
+    "dev": "npx ts-node src/index.ts"
+  },
+  "dependencies": {
+    "playwright": "^1.44.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}
