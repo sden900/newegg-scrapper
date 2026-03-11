@@ -27,4 +27,7 @@ export const NEWEGG_SELECTORS = {
 
   // Sponsored / promoted label
   SPONSORED_LABEL: '.item-promo',
+
+  // Promotional tags e.g. "Newegg Select", "AI Ready", etc.
+  TAG: 'div.tag-text',
 } as const;

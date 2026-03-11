@@ -9,6 +9,7 @@ export interface ProductListItemData {
   isFreeShipping: boolean;
   isSponsored: boolean;
   productUrl: string | null;
+  tags: string[];
 }
 
 export class ProductListItem implements ProductListItemData {
@@ -22,6 +23,7 @@ export class ProductListItem implements ProductListItemData {
   isFreeShipping: boolean;
   isSponsored: boolean;
   productUrl: string | null;
+  tags: string[];
 
   constructor(data: ProductListItemData) {
     this.title = data.title;
@@ -34,6 +36,7 @@ export class ProductListItem implements ProductListItemData {
     this.isFreeShipping = data.isFreeShipping;
     this.isSponsored = data.isSponsored;
     this.productUrl = data.productUrl;
+    this.tags = data.tags;
   }
 
   toJSON(): ProductListItemData {

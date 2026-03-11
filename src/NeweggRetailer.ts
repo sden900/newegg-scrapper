@@ -1,15 +1,30 @@
-import { chromium, Browser, BrowserContext, Page } from 'playwright';
+import { chromium, Browser, BrowserContext, Page } from 'playwright';   // I use Playwright as a standard tool, but I would probably choose Patchright/Camoufox/ some cloud browser.
 import { NeweggListingScraper } from './scrapers/NeweggListingScraper';
 import { ProductListPage } from './models/ProductListPage';
+import { ProxyProvider } from './Proxy';
 
 export interface NeweggRetailerConfig {
   screenshotOnError?: boolean;   // save debug-screenshot.png when scraping fails (default: true)
 }
 
+export type PageSize = 36 | 60 | 96;
+
+export interface ProxyConfig {
+  server: string;       // e.g. "http://proxy-host:8080"
+  username?: string;
+  password?: string;
+}
+
 export interface GetProductListOptions {
   keywords: string;
   page?: number;
+  pageSize?: PageSize;  // items per page: 36, 60, or 96 (default: 96)
+  proxy?: ProxyProvider;        // proxy manager instance; GetLastProxy() is called per request
 }
+
+export type ProductListResult =
+  | { status: 'success'; data: ProductListPage }
+  | { status: 'error'; error: string };
 
 export class NeweggRetailer {
   private readonly baseListingUrl = 'https://www.newegg.com/p/pl';
@@ -21,33 +36,48 @@ export class NeweggRetailer {
     this.screenshotOnError = config.screenshotOnError ?? true;
   }
 
-  async getProductList(options: GetProductListOptions): Promise<ProductListPage> {
-    const { keywords, page = 1 } = options;
-    const url = this.buildUrl(keywords, page);
+  async getProductList(options: GetProductListOptions): Promise<ProductListResult> {
+    const { keywords, page = 1, pageSize = 96, proxy } = options;
+    const url = this.buildUrl(keywords, page, pageSize);
 
-    const browser = await this.launchBrowser();
-    const context = await this.createContext(browser);
+    const maxRetries = 3;
+    let lastError = '';
 
-    const browserPage = await context.newPage();
-    try {
-      await this.applyAntiDetection(browserPage);
-      // 'commit' resolves on first response headers — avoids hanging on Cloudflare challenges
-      await browserPage.goto(url, { waitUntil: 'commit', timeout: 30_000 });
-      return await this.scraper.scrapePage(browserPage, keywords, url, this.screenshotOnError);
-    } catch (err) {
-      if (this.screenshotOnError) {
-        await browserPage.screenshot({ path: 'debug-screenshot.png', fullPage: true }).catch(() => {});
-        console.error('Saved debug-screenshot.png');
+    // Here, the tactic of using a single proxy for all pagination requests is implemented. 
+    // Possibly, the number of pagination requests for a single proxy should be limited.
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const proxyConfig = proxy?.GetLastProxy() ?? undefined;
+      const browser = await this.launchBrowser();
+      const context = await this.createContext(browser, proxyConfig);
+      const browserPage = await context.newPage();
+
+      try {
+        await this.applyAntiDetection(browserPage);
+        // 'commit' resolves on first response headers — avoids hanging on Cloudflare challenges
+        await browserPage.goto(url, { waitUntil: 'commit', timeout: 30_000 });
+        const data = await this.scraper.scrapePage(browserPage, keywords, url, this.screenshotOnError);
+        return { status: 'success', data };
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        console.warn(`Attempt ${attempt}/${maxRetries} failed: ${lastError}`);
+        if (this.screenshotOnError) {
+          await browserPage.screenshot({ path: 'debug-screenshot.png', fullPage: true }).catch(() => {});
+          console.error('Saved debug-screenshot.png');
+        }
+        if (attempt < maxRetries) {
+          proxy?.ResetProxy();
+        }
+      } finally {
+        await context.close();
+        await browser.close();
       }
-      throw err;
-    } finally {
-      await context.close();
-      await browser.close();
     }
+
+    return { status: 'error', error: lastError };
   }
 
-  private buildUrl(keywords: string, page: number): string {
-    const params = new URLSearchParams({ d: keywords });
+  private buildUrl(keywords: string, page: number, pageSize: PageSize): string {
+    const params = new URLSearchParams({ d: keywords, pageSize: String(pageSize) });
     if (page > 1) params.set('page', String(page));
     return `${this.baseListingUrl}?${params.toString()}`;
   }
@@ -56,7 +86,7 @@ export class NeweggRetailer {
     return chromium.launch({ headless: true });
   }
 
-  private async createContext(browser: Browser): Promise<BrowserContext> {
+  private async createContext(browser: Browser, proxy?: ProxyConfig): Promise<BrowserContext> {
     return browser.newContext({
       viewport: { width: 1920, height: 1080 },
       userAgent:
@@ -66,6 +96,7 @@ export class NeweggRetailer {
       extraHTTPHeaders: {
         'Accept-Language': 'en-US,en;q=0.9',
       },
+      ...(proxy && { proxy }),
     });
   }
 

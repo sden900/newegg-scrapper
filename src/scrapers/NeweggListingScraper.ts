@@ -71,6 +71,10 @@ export class NeweggListingScraper {
 
           const isSponsored = cell.querySelector(sel.SPONSORED_LABEL) !== null;
 
+          const tags = Array.from(cell.querySelectorAll(sel.TAG))
+            .map((el) => el.textContent?.trim() ?? '')
+            .filter((t) => t.length > 0);
+
           return {
             title,
             productUrl,
@@ -82,6 +86,7 @@ export class NeweggListingScraper {
             shippingText,
             isFreeShipping,
             isSponsored,
+            tags,
           };
         });
     }, SEL);
