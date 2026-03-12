@@ -51,9 +51,3 @@ async function main() {
 
 main().catch(console.error);
 
-
-/*// static proxy
-await retailer.getProductList({
-  keywords: 'ddr4',
-  getProxy: () => ({ server: 'http://proxy-host:8080', username: 'user', password: 'pass' }),
-});*/
