@@ -3,15 +3,18 @@ export type { ProductListItemData } from './models/ProductListItem';
 export { ProductListPage } from './models/ProductListPage';
 export type { ProductListPageData } from './models/ProductListPage';
 export { NeweggRetailer } from './NeweggRetailer';
-export type { GetProductListOptions, NeweggRetailerConfig, ProductListResult, PageSize, ProxyConfig } from './NeweggRetailer';
+export type { GetProductListOptions, NeweggRetailerConfig, ProductListResult, PageSize, GetProductInfoOptions, ProductInfoResult } from './NeweggRetailer';
+export { ProductInfo } from './models/ProductInfo';
+export type { ProductInfoData } from './models/ProductInfo';
 export { ProxyProvider } from './Proxy';
+export type { ProxyConfig } from './Proxy';
 
 // Run as a script: npx ts-node src/index.ts
 import { NeweggRetailer } from './NeweggRetailer';
 
 async function main() {
   const retailer = new NeweggRetailer();
-  const keywords = 'ddr5';
+  const keywords = 'Ryzen 7 5800XT';
   const allItems: import('./models/ProductListItem').ProductListItem[] = [];
   let currentPage = 1;
   let totalPages: number | null = null;
@@ -39,6 +42,11 @@ async function main() {
   console.log(`\nDone. Total items collected: ${allItems.length}`);
   console.log('\nFirst 3 items:');
   console.log(JSON.stringify(allItems.slice(0, 3), null, 2));
+
+  const result = await retailer.getProductInfo({ url: allItems[0].productUrl, proxy: undefined });
+  console.log('\nFirst item detailed info:');
+  console.log(JSON.stringify(result, null, 2));
+
 }
 
 main().catch(console.error);
@@ -46,6 +54,6 @@ main().catch(console.error);
 
 /*// static proxy
 await retailer.getProductList({
-  keywords: 'ddr5',
+  keywords: 'ddr4',
   getProxy: () => ({ server: 'http://proxy-host:8080', username: 'user', password: 'pass' }),
 });*/

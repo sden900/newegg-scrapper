@@ -31,7 +31,7 @@ export class NeweggListingScraper {
         .map((cell): ProductListItemData => {
           const titleEl = cell.querySelector<HTMLAnchorElement>(sel.TITLE);
           const title = titleEl?.textContent?.trim() ?? '';
-          const productUrl = titleEl?.href ?? null;
+          const productUrl = titleEl?.href ?? '';
 
           const imgEl = cell.querySelector<HTMLImageElement>(sel.IMAGE);
           const imageUrl = imgEl?.src || imgEl?.dataset.src || null;
@@ -55,8 +55,8 @@ export class NeweggListingScraper {
             : null;
 
           const ratingEl = cell.querySelector(sel.RATING_CONTAINER);
-          const ariaLabel = ratingEl?.getAttribute('aria-label') ?? null;
-          const ratingMatch = ariaLabel?.match(/([0-9.]+)\s+out\s+of/i);
+          const ratingAttr = ratingEl?.getAttribute('aria-label') ?? ratingEl?.getAttribute('title') ?? null;
+          const ratingMatch = ratingAttr?.match(/([0-9.]+)\s+out\s+of/i);
           const ratingStars = ratingMatch ? parseFloat(ratingMatch[1]) : null;
 
           const reviewEl = cell.querySelector(sel.REVIEW_COUNT);

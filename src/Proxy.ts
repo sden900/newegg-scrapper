@@ -3,7 +3,11 @@ skeleton class for implementing proxy logic.
 Here we need to implement queries to the database with proxy tables, queries to the provider's API, etc.
 */
 
-import { ProxyConfig } from './NeweggRetailer';
+export interface ProxyConfig {
+  server: string;       // e.g. "http://proxy-host:8080"
+  username?: string;
+  password?: string;
+}
 
 export class ProxyProvider {
   private readonly proxies: ProxyConfig[];

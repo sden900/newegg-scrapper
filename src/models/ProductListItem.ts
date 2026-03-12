@@ -8,7 +8,7 @@ export interface ProductListItemData {
   shippingText: string | null;
   isFreeShipping: boolean;
   isSponsored: boolean;
-  productUrl: string | null;
+  productUrl: string;
   tags: string[];
 }
 
@@ -22,7 +22,7 @@ export class ProductListItem implements ProductListItemData {
   shippingText: string | null;
   isFreeShipping: boolean;
   isSponsored: boolean;
-  productUrl: string | null;
+  productUrl: string;
   tags: string[];
 
   constructor(data: ProductListItemData) {
