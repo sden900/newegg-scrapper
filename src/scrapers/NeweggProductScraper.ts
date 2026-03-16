@@ -12,28 +12,11 @@ export class NeweggProductScraper {
       .catch(() => false);
 
     if (!titleFound) {
-      console.warn(`Product detail not found (title: "${await page.title()}"). Returning empty result.`);
       if (screenshotOnError) {
         await page.screenshot({ path: 'debug-screenshot.png', fullPage: true }).catch(() => {});
         console.warn('Saved debug-screenshot.png');
       }
-      return new ProductInfo({
-        url,
-        title: '',
-        brand: null,
-        mainImageUrl: null,
-        galleryImageUrls: [],
-        priceCurrentDollars: null,
-        priceWas: null,
-        ratingStars: null,
-        reviewCount: null,
-        availability: null,
-        shippingText: null,
-        isFreeShipping: false,
-        descriptionBullets: [],
-        specs: {},
-        scrapedAt: new Date(),
-      });
+      throw new Error(`Product detail not found (page title: "${await page.title()}")`);
     }
 
     console.log('Product detail found, extracting data...');

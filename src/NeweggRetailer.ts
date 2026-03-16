@@ -2,6 +2,7 @@ import { chromium, Browser, BrowserContext, Page } from 'playwright';   // I use
 import { NeweggListingScraper } from './scrapers/NeweggListingScraper';
 import { NeweggProductScraper } from './scrapers/NeweggProductScraper';
 import { ProductListPage } from './models/ProductListPage';
+import { ProductListItem } from './models/ProductListItem';
 import { ProductInfo } from './models/ProductInfo';
 import { ProxyProvider, ProxyConfig } from './Proxy';
 
@@ -31,6 +32,16 @@ export interface GetProductInfoOptions {
   proxy?: ProxyProvider;
 }
 
+export interface GetProductListAllOptions {
+  keywords: string;
+  maxResults?: number;  // stop collecting once this many items are gathered (default: unlimited)
+  proxy?: ProxyProvider;
+}
+
+export type ProductListAllResult =
+  | { status: 'success'; data: ProductListItem[] }
+  | { status: 'error'; error: string };
+
 export class NeweggRetailer {
   private readonly baseListingUrl = 'https://www.newegg.com/p/pl';
   private readonly scraper: NeweggListingScraper;
@@ -43,7 +54,35 @@ export class NeweggRetailer {
     this.screenshotOnError = config.screenshotOnError ?? true;
   }
 
-  async getProductList(options: GetProductListOptions): Promise<ProductListResult> {
+  async getProductList(options: GetProductListAllOptions): Promise<ProductListAllResult> {
+    const { keywords, maxResults, proxy } = options;
+    const items: ProductListItem[] = [];
+    let currentPage = 1;
+
+    while (true) {
+      const result = await this.getProductListPage({ keywords, page: currentPage, pageSize: 96, proxy });
+      if (result.status === 'error') {
+        return items.length > 0
+          ? { status: 'success', data: items }
+          : { status: 'error', error: result.error };
+      }
+
+      const page = result.data;
+      for (const item of page.items) {
+        items.push(item);
+        if (maxResults !== undefined && items.length >= maxResults) {
+          return { status: 'success', data: items };
+        }
+      }
+
+      if (!page.hasNextPage) break;
+      currentPage++;
+    }
+
+    return { status: 'success', data: items };
+  }
+
+  async getProductListPage(options: GetProductListOptions): Promise<ProductListResult> {
     const { keywords, page = 1, pageSize = 96, proxy } = options;
     const url = this.buildUrl(keywords, page, pageSize);
 
@@ -61,7 +100,6 @@ export class NeweggRetailer {
         //browserPage.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
         try {
-          await this.applyAntiDetection(browserPage);
           // 'commit' resolves on first response headers — avoids hanging on Cloudflare challenges
           await browserPage.goto(url, { waitUntil: 'commit', timeout: 30_000 });
           const data = await this.scraper.scrapePage(browserPage, keywords, url, this.screenshotOnError);
@@ -95,13 +133,12 @@ export class NeweggRetailer {
 
     const browser = await this.launchBrowser();
     try {
-      for (let attempt = 1; attempt <= maxRetries; attempt++) { //refactor to avoid code duplication with getProductList?
+      for (let attempt = 1; attempt <= maxRetries; attempt++) { //refactor to avoid code duplication with getProductListPage?
         const proxyConfig = proxy?.GetLastProxy() ?? undefined;
         const context = await this.createContext(browser, proxyConfig);
         const browserPage = await context.newPage();
         // browserPage.on('console', msg => console.log('PAGE LOG:', msg.text()));
         try {
-          await this.applyAntiDetection(browserPage);
           await browserPage.goto(url, { waitUntil: 'commit', timeout: 30_000 });
           const data = await this.productScraper.scrapePage(browserPage, url, this.screenshotOnError);
           return { status: 'success', data };
@@ -150,10 +187,5 @@ export class NeweggRetailer {
     });
   }
 
-  private async applyAntiDetection(page: Page): Promise<void> {
-    // Script string runs in browser context, not Node — no DOM types available here
-    await page.addInitScript(
-      'Object.defineProperty(navigator, "webdriver", { get: () => undefined })'
-    );
-  }
+
 }
